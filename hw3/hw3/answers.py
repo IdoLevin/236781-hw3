@@ -15,14 +15,21 @@ def part1_rnn_hyperparams():
         seq_len=0,
         h_dim=0,
         n_layers=0,
-        dropout=0,
+        dropout=0.0,
         learn_rate=0.0,
         lr_sched_factor=0.0,
         lr_sched_patience=0,
     )
     # TODO: Set the hyperparameters to train the model.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    hypers['batch_size'] = 100
+    hypers['seq_len'] = 100
+    hypers['h_dim'] = 10
+    hypers['n_layers'] = 10
+    hypers['dropout'] = 0.1
+    hypers['learn_rate'] = 0.01
+    hypers['lr_sched_factor'] = 0.01
+    hypers['lr_sched_patience'] = 5
     # ========================
     return hypers
 
@@ -32,7 +39,10 @@ def part1_generation_params():
     temperature = 0.0001
     # TODO: Tweak the parameters to generate a literary masterpiece.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    start_seq = "ARNON. Oh my, I forgot to pay the water bill. "
+    start_seq = "ARNON. Oh my, our refrigerator seems to be dysfunctional. What shall we do? \n" \
+                "IDO. Ye must ask the neighbours for storage room in theirs. \n"
+    temperature = 0.0001
     # ========================
     return start_seq, temperature
 
@@ -40,52 +50,35 @@ def part1_generation_params():
 part1_q1 = r"""
 **Your answer:**
 
+An iteration over a very large text requires 
 
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+To create a training set of many samples, rather than just one sample. 
+Afterwards, in every epoch will have many iterations, each on a batch of few samples.
+
+Also, making the samples smaller allows the hidden state to cost less space.  
 
 """
 
 part1_q2 = r"""
 **Your answer:**
 
-
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+The hidden state. ...
 
 """
 
 part1_q3 = r"""
 **Your answer:**
 
-
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+So that we'll have the same order in every iteration. 
 
 """
 
 part1_q4 = r"""
 **Your answer:**
 
-
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+1. To make the distribution less uniform
+2. For high temperature, the distribution is less uniform
+3. For low temperature, the distribution is more uniform 
 
 """
 # ==============

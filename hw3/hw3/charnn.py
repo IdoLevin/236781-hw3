@@ -112,9 +112,9 @@ def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int, device
     embedding = chars_to_onehot(text, char_to_idx)
 
     num_samples = (len(text) - 1) // seq_len
-    total_samples_len = seq_len * num_samples
-    current_chars = embedding[:total_samples_len, :]
-    next_chars = embedding[1:total_samples_len + 1, :]
+    actual_total_len = seq_len * num_samples
+    current_chars = embedding[:actual_total_len, :]
+    next_chars = embedding[1:actual_total_len + 1, :]
     next_chars = torch.argmax(next_chars, dim=1)
 
     samples = torch.reshape(current_chars, (num_samples, seq_len, len(char_to_idx))).to(device)
@@ -134,7 +134,8 @@ def hot_softmax(y, dim=0, temperature=1.0):
     """
     # TODO: Implement based on the above.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    y_scaled = y / temperature
+    result = torch.softmax(y_scaled, dim=dim)
     # ========================
     return result
 
@@ -170,7 +171,17 @@ def generate_from_model(model, start_sequence, n_chars, char_maps, T):
     #  necessary for this. Best to disable tracking for speed.
     #  See torch.no_grad().
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    with torch.no_grad():
+        len_of_input = len(start_sequence)
+        hidden_state = None
+        for i in range(n_chars - len_of_input):
+            current_sequence = out_text[-1]
+            embedded_input = chars_to_onehot(current_sequence, char_to_idx).to(device, dtype=torch.float)
+            embedded_input = embedded_input.unsqueeze(0).type(torch.float)
+            (layer_output, hidden_state) = model.forward(embedded_input, hidden_state)
+            letter = layer_output[0, :, :]
+            idx = torch.multinomial(hot_softmax(letter.flatten(), 0, temperature=T), 1, replacement=True).item()
+            out_text = out_text + idx_to_char[idx]
     # ========================
 
     return out_text
@@ -203,7 +214,9 @@ class SequenceBatchSampler(torch.utils.data.Sampler):
         #  you can drop it.
         idx = None  # idx should be a 1-d list of indices.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        num_batches = len(self.dataset) // self.batch_size
+        actual_total_len = self.batch_size * num_batches
+        idx = torch.arange(actual_total_len).view((self.batch_size, num_batches)).t().flatten().tolist()
         # ========================
         return iter(idx)
 
@@ -250,7 +263,29 @@ class MultilayerGRU(nn.Module):
         #      then call self.register_parameter() on them. Also make
         #      sure to initialize them. See functions in torch.nn.init.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        prev_dim = self.in_dim
+        for i in range(self.n_layers):
+            zx = nn.Linear(prev_dim, self.h_dim, bias=False).to(self.device)
+            zh = nn.Linear(self.h_dim, self.h_dim, bias=True).to(self.device)
+            rx = nn.Linear(prev_dim, self.h_dim, bias=False).to(self.device)
+            rh = nn.Linear(self.h_dim, self.h_dim, bias=True).to(self.device)
+            gx = nn.Linear(prev_dim, self.h_dim, bias=False).to(self.device)
+            gh = nn.Linear(self.h_dim, self.h_dim, bias=True).to(self.device)
+            drop = nn.Dropout(dropout).to(self.device)
+            self.add_module('z_x_' + str(i), zx)
+            self.add_module('z_h_' + str(i), zh)
+            self.add_module('r_x_' + str(i), rx)
+            self.add_module('r_h_' + str(i), rh)
+            self.add_module('g_x_' + str(i), gx)
+            self.add_module('g_h_' + str(i), gh)
+            self.add_module('drop_' + str(i), drop)
+            prev_dim = self.h_dim
+            self.layer_params.append({'z_x': zx, 'z_h': zh, 'r_x': rx,
+                                      'r_h': rh, 'g_x': gx, 'g_h': gh, 'drop': drop})
+        final = nn.Linear(self.h_dim, self.out_dim, bias=True).to(self.device)
+        self.layer_params.append({'out': final})
+        self.add_module('out', final)
         # ========================
 
     def forward(self, input: Tensor, hidden_state: Tensor = None):
@@ -288,6 +323,18 @@ class MultilayerGRU(nn.Module):
         #  Tip: You can use torch.stack() to combine multiple tensors into a
         #  single tensor in a differentiable manner.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        layer_output = torch.zeros((batch_size, seq_len, self.out_dim), device=layer_input.device)
+        for seq in range(seq_len):
+            x_curr = layer_input[:, seq, :].to(layer_input.device)
+            for layer in range(self.n_layers):
+                h = self.layer_params[layer]
+                z = torch.sigmoid(h['z_x'](x_curr) + h['z_h'](layer_states[layer]))
+                r = torch.sigmoid(h['r_x'](x_curr) + h['r_h'](layer_states[layer]))
+                g = torch.tanh(h['g_x'](x_curr) + h['g_h'](r * layer_states[layer]))
+                layer_states[layer] = z * layer_states[layer] + (torch.ones_like(z) - z) * g
+                x_curr = h['drop'](layer_states[layer])
+            h = self.layer_params[-1]
+            layer_output[:, seq, :] = h['out'](x_curr)
+        hidden_state = torch.stack(layer_states, dim=1)
         # ========================
         return layer_output, hidden_state
