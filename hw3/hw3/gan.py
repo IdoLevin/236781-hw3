@@ -20,7 +20,16 @@ class Discriminator(nn.Module):
         #  You can then use either an affine layer or another conv layer to
         #  flatten the features.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        modules = []
+        in_channels = in_size[0]
+        dims = [in_channels, 50, 150, 300, 750]
+        for _, (in_channels, out_channels) in enumerate(zip(dims[:-1], dims[1:])):
+            modules.append(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding=1, stride=2))
+            modules.append(nn.BatchNorm2d(out_channels))
+            modules.append(nn.LeakyReLU(0.2))
+        modules.append(nn.Conv2d(in_channels=dims[-1], out_channels=1, kernel_size=3, stride=2))
+
+        self.cnn = nn.Sequential(*modules)
         # ========================
 
     def forward(self, x):
@@ -33,7 +42,9 @@ class Discriminator(nn.Module):
         #  No need to apply sigmoid to obtain probability - we'll combine it
         #  with the loss due to improved numerical stability.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        y = self.cnn(x)
+        print(y.shape)
+        y = y.reshape(shape=(x.size(0), -1))
         # ========================
         return y
 
@@ -54,7 +65,15 @@ class Generator(nn.Module):
         #  section or implement something new.
         #  You can assume a fixed image size.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        modules = []
+        dims = [z_dim, 750, 300, 150, 50, out_channels]
+        paddings = [0, 1, 1, 1, 1, 1, 1]
+        for _, (in_channels, out_channels, padding) in enumerate(zip(dims[:-1], dims[1:], paddings)):
+            modules.append(nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=featuremap_size, padding=padding, stride=2))
+            modules.append(nn.BatchNorm2d(out_channels))
+            modules.append(nn.ReLU())
+        modules = modules[:-2]
+        self.cnn = nn.Sequential(*modules)
         # ========================
 
     def sample(self, n, with_grad=False):
@@ -71,7 +90,12 @@ class Generator(nn.Module):
         #  Generate n latent space samples and return their reconstructions.
         #  Don't use a loop.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        z = torch.randn((n, self.z_dim, 1, 1)).to(device)
+        if with_grad:
+            samples = self.cnn(z)
+        else:
+            with torch.no_grad():
+                samples = self.cnn(z)
         # ========================
         return samples
 
@@ -85,7 +109,8 @@ class Generator(nn.Module):
         #  Don't forget to make sure the output instances have the same
         #  dynamic range as the original (real) images.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        z = z.reshape((z.size(0), self.z_dim, 1, 1))
+        x = self.cnn(z)
         # ========================
         return x
 
