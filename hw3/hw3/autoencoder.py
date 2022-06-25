@@ -80,7 +80,10 @@ class VAE(nn.Module):
 
         # TODO: Add more layers as needed for encode() and decode().
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.n_features = n_features
+        self.sigma = nn.Linear(n_features, self.z_dim)
+        self.modu = nn.Linear(n_features, self.z_dim)
+        self.z_layer = nn.Linear(self.z_dim, n_features)
         # ========================
 
     def _check_features(self, in_size):
@@ -101,7 +104,13 @@ class VAE(nn.Module):
         #     log_sigma2 (mean and log variance) of q(Z|x).
         #  2. Apply the reparametrization trick to obtain z.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        device = next(self.parameters()).device
+        features = self.features_encoder(x).to(device).reshape(-1, self.n_features)
+        mu = self.mean_layer(features).to(device)
+        sig = torch.sqrt(torch.exp(self.sigma(features).to(device))).to(device)
+        log_sigma2 = self.sigma(features).to(device)
+        mul = torch.randn(sig.size()).to(device)
+        z = mu + sig*mul
         # ========================
 
         return z, mu, log_sigma2
