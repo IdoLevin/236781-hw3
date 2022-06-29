@@ -22,14 +22,14 @@ def part1_rnn_hyperparams():
     )
     # TODO: Set the hyperparameters to train the model.
     # ====== YOUR CODE: ======
-    hypers['batch_size'] = 100
+    hypers['batch_size'] = 150
     hypers['seq_len'] = 100
-    hypers['h_dim'] = 10
-    hypers['n_layers'] = 10
-    hypers['dropout'] = 0.1
-    hypers['learn_rate'] = 0.01
-    hypers['lr_sched_factor'] = 0.01
-    hypers['lr_sched_patience'] = 5
+    hypers['h_dim'] = 1200
+    hypers['n_layers'] = 6
+    hypers['dropout'] = 0.2
+    hypers['learn_rate'] = 0.0008
+    hypers['lr_sched_factor'] = 0.2
+    hypers['lr_sched_patience'] = 2
     # ========================
     return hypers
 
@@ -40,8 +40,11 @@ def part1_generation_params():
     # TODO: Tweak the parameters to generate a literary masterpiece.
     # ====== YOUR CODE: ======
     start_seq = "ARNON. Oh my, I forgot to pay the water bill. "
-    start_seq = "ARNON. Oh my, our refrigerator seems to be dysfunctional. What shall we do? \n" \
-                "IDO. Ye must ask the neighbours for storage room in theirs. \n"
+    start_seq = "ACT I. Scene 1. \n" \
+                "Haifa. A students apartment. \n\n" \
+                "ARNON. Oh my, our refrigerator seems to be dysfunctional. What shall we do? \n" \
+                "IDO. To refrige, or not to refrige? That is the question. \n" \
+                "    Ye must ask the neighbours for storage room in theirs. \n"
     temperature = 0.0001
     # ========================
     return start_seq, temperature
@@ -96,7 +99,12 @@ def part2_vae_hyperparams():
     )
     # TODO: Tweak the hyperparameters to generate a former president.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    hypers['batch_size'] = 10
+    hypers['h_dim'] = 500
+    hypers['z_dim'] = 50
+    hypers['x_sigma2'] = 0.01
+    hypers['learn_rate'] = 0.0001
+    hypers['betas'] = (0.65, 0.9)
     # ========================
     return hypers
 
