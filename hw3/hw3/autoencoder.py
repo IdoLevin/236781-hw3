@@ -19,10 +19,10 @@ class EncoderCNN(nn.Module):
         #  use pooling or only strides, use any activation functions,
         #  use BN or Dropout, etc.
         # ====== YOUR CODE: ======
-        dims = [in_channels, 64, 128, 256, 512, out_channels]
-        for _, (in_channels, out_channels) in enumerate(zip(dims[:-1], dims[1:])):
-            modules.append(nn.Conv2d(out_channels=out_channels, in_channels=in_channels, kernel_size=4, padding=1, stride=2))
-            modules.append(nn.BatchNorm2d(out_channels))
+        dims = [in_channels, 64, 128, 256, 480, out_channels]
+        for i in range(len(dims)-1):
+            modules.append(nn.Conv2d(in_channels=dims[i], out_channels=dims[i+1], kernel_size=5, padding=2, stride=2))
+            modules.append(nn.BatchNorm2d(dims[i+1]))
             modules.append(nn.LeakyReLU(0.05))
         modules = modules[:-1]
         # ========================
@@ -47,12 +47,13 @@ class DecoderCNN(nn.Module):
         #  output should be a batch of images, with same dimensions as the
         #  inputs to the Encoder were.
         # ====== YOUR CODE: ======
-        dims = [in_channels, 512, 256, 128, 64, out_channels]
-        for _, (in_channels, out_channels) in enumerate(zip(dims[:-1], dims[1:])):
-            modules.append(nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=4, padding=1, stride=2))
-            modules.append(nn.BatchNorm2d(out_channels))
+        dims = [in_channels, 480, 256, 128, 64, out_channels]
+        for i in range(len(dims)-1):
+            modules.append(nn.ConvTranspose2d(in_channels=dims[i], out_channels=dims[i+1], kernel_size=6, padding=2, stride=2))
+            modules.append(nn.BatchNorm2d(dims[i+1]))
             modules.append(nn.LeakyReLU(0.05))
         modules = modules[:-2]
+        modules.append(nn.Tanh())
         # ========================
         self.cnn = nn.Sequential(*modules)
 
@@ -107,10 +108,10 @@ class VAE(nn.Module):
         device = next(self.parameters()).device
         features = self.features_encoder(x).to(device).reshape(-1, self.n_features)
         mu = self.mean(features).to(device)
-        sig = torch.sqrt(torch.exp(self.logvariance(features).to(device))).to(device)
+        sigma = torch.sqrt(torch.exp(self.logvariance(features).to(device))).to(device)
         log_sigma2 = self.logvariance(features).to(device)
-        mul = torch.randn(sig.size()).to(device)
-        z = mu + sig * mul
+        mul = torch.randn(sigma.size()).to(device)
+        z = mu + sigma * mul
         # ========================
 
         return z, mu, log_sigma2

@@ -22,11 +22,11 @@ class Discriminator(nn.Module):
         # ====== YOUR CODE: ======
         modules = []
         in_channels = in_size[0]
-        dims = [in_channels, 50, 150, 300, 750]
-        for _, (in_channels, out_channels) in enumerate(zip(dims[:-1], dims[1:])):
-            modules.append(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, padding=1, stride=2))
-            modules.append(nn.BatchNorm2d(out_channels))
-            modules.append(nn.LeakyReLU(0.2))
+        dims = [in_channels, 64, 128, 256, 480]
+        for i in range(len(dims)-1):
+            modules.append(nn.Conv2d(in_channels=dims[i], out_channels=dims[i+1], kernel_size=5, padding=2, stride=2))
+            modules.append(nn.BatchNorm2d(dims[i+1]))
+            modules.append(nn.LeakyReLU(0.05))
         modules.append(nn.Conv2d(in_channels=dims[-1], out_channels=1, kernel_size=3, stride=2))
 
         self.cnn = nn.Sequential(*modules)
@@ -43,7 +43,6 @@ class Discriminator(nn.Module):
         #  with the loss due to improved numerical stability.
         # ====== YOUR CODE: ======
         y = self.cnn(x)
-        print(y.shape)
         y = y.reshape(shape=(x.size(0), -1))
         # ========================
         return y
@@ -66,12 +65,12 @@ class Generator(nn.Module):
         #  You can assume a fixed image size.
         # ====== YOUR CODE: ======
         modules = []
-        dims = [z_dim, 750, 300, 150, 50, out_channels]
+        dims = [z_dim, 480, 256, 128, 64, out_channels]
         paddings = [0, 1, 1, 1, 1, 1, 1]
-        for _, (in_channels, out_channels, padding) in enumerate(zip(dims[:-1], dims[1:], paddings)):
-            modules.append(nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=featuremap_size, padding=padding, stride=2))
-            modules.append(nn.BatchNorm2d(out_channels))
-            modules.append(nn.ReLU())
+        for i in range(len(dims)-1):
+            modules.append(nn.ConvTranspose2d(in_channels=dims[i], out_channels=dims[i+1], kernel_size=featuremap_size, padding=paddings[i], stride=2))
+            modules.append(nn.BatchNorm2d(dims[i+1]))
+            modules.append(nn.LeakyReLU(0.05))
         modules = modules[:-2]
         self.cnn = nn.Sequential(*modules)
         # ========================
@@ -136,7 +135,12 @@ def discriminator_loss_fn(y_data, y_generated, data_label=0, label_noise=0.0):
     #  generated labels.
     #  See pytorch's BCEWithLogitsLoss for a numerically stable implementation.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    rand_data_label = label_noise * torch.rand_like(y_data)
+    rand_generated_label = label_noise * torch.rand_like(y_generated)
+    pred_for_data = rand_data_label + data_label - label_noise / 2
+    pred_for_generated = rand_generated_label + (1 - data_label) - label_noise / 2
+    loss_data = nn.BCEWithLogitsLoss()(y_data, pred_for_data)
+    loss_generated = nn.BCEWithLogitsLoss()(y_generated, pred_for_generated)
     # ========================
     return loss_data + loss_generated
 
@@ -157,7 +161,11 @@ def generator_loss_fn(y_generated, data_label=0):
     #  Think about what you need to compare the input to, in order to
     #  formulate the loss in terms of Binary Cross Entropy.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    if not data_label:
+        y_labels = torch.zeros_like(y_generated)
+    else:
+        y_labels = torch.ones_like(y_generated)
+    loss = nn.BCEWithLogitsLoss()(y_generated, y_labels)
     # ========================
     return loss
 
@@ -182,7 +190,14 @@ def train_batch(
     #  2. Calculate discriminator loss
     #  3. Update discriminator parameters
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    gen = dsc_model.forward(gen_model.sample(x_data.size(0), False))
+    y = dsc_model.forward(x_data)
+
+    dsc_loss = dsc_loss_fn(y, gen)
+
+    dsc_optimizer.zero_grad()
+    dsc_loss.backward()
+    dsc_optimizer.step()
     # ========================
 
     # TODO: Generator update
@@ -190,7 +205,11 @@ def train_batch(
     #  2. Calculate generator loss
     #  3. Update generator parameters
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    gen_loss = gen_loss_fn(dsc_model.forward(gen_model.sample(x_data.size(0), True)))
+
+    gen_optimizer.zero_grad()
+    gen_loss.backward()
+    gen_optimizer.step()
     # ========================
 
     return dsc_loss.item(), gen_loss.item()
@@ -213,8 +232,11 @@ def save_checkpoint(gen_model, dsc_losses, gen_losses, checkpoint_file):
     #  You should decide what logic to use for deciding when to save.
     #  If you save, set saved to True.
     # ====== YOUR CODE: ======
-
-    raise NotImplementedError()
+    if checkpoint_file and len(dsc_losses) >= 2 \
+            and gen_losses[-1] < gen_losses[-2] \
+            and dsc_losses[-1] < dsc_losses[-2]:
+        torch.save(gen_model, checkpoint_file)
+        saved = True
     # ========================
 
     return saved
